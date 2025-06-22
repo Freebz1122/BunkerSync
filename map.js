@@ -1,5 +1,6 @@
-import { db, supabase } from '/app.js';
-import { getDoc, collection, getDocs, query, where, addDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { db } from './db.js';
+import { supabase, firestore } from './app.js';
+import { getDoc, doc, collection, getDocs, query, where, addDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 let map = null;
 let markers = [];
@@ -12,12 +13,12 @@ async function loadMap(hole) {
     return;
   }
   try {
-    const courseDoc = await getDoc(doc(db, 'courses', window.currentCourseId));
+    const courseDoc = await getDoc(doc(firestore, 'courses', window.currentCourseId));
     if (!courseDoc.exists()) {
       document.getElementById('map').innerHTML = '<p>Course not found</p>';
       return;
     }
-    const mapData = courseDoc.data().maps?.find((m) => m.hole === parseInt(hole) || m.hole === hole);
+    const mapData = courseDoc.data().maps?.find((m) => m.holeNumber === parseInt(hole) || m.holeNumber === hole);
     if (!mapData) {
       document.getElementById('map').innerHTML = '<p>No map available for this hole</p>';
       return;
@@ -30,10 +31,10 @@ async function loadMap(hole) {
     map.fitBounds([[-100, -100], [100, 100]]);
     markers.forEach((marker) => marker.remove());
     markers = [];
-    const bunkers = await getDocs(query(collection(db, 'courses', window.currentCourseId, 'bunkers'), where('hole', '==', hole)));
+    const bunkers = await getDocs(query(collection(firestore, 'courses', window.currentCourseId, 'bunkers'), where('holeNumber', '==', hole)));
     bunkers.forEach((doc) => {
-      const { x, y } = doc.data();
-      const marker = L.marker([x, y]).addTo(map);
+      const { lat, lng } = doc.data();
+      const marker = L.marker([lat, lng]).addTo(map);
       markers.push(marker);
     });
     map.on('click', async (e) => {
@@ -44,10 +45,11 @@ async function loadMap(hole) {
       const { lat, lng } = e.latlng;
       const marker = L.marker([lat, lng]).addTo(map);
       markers.push(marker);
-      await addDoc(collection(db, 'courses', window.currentCourseId, 'bunkers'), {
-        hole,
-        x: lat,
-        y: lng
+      await addDoc(collection(firestore, 'courses', window.currentCourseId, 'bunkers'), {
+        holeNumber: hole,
+        lat,
+        lng,
+        createdAt: new Date()
       });
     });
   } catch (error) {
