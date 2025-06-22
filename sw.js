@@ -1,100 +1,69 @@
 const CACHE_NAME = 'ganton-bunker-v6';
-const APP_STATIC_RESOURCES = [
+const assets = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/images/ganton-logo-v3.jpg',
   '/images/back-icon.png',
-  '/images/home-icon.png'
+  '/images/home-icon.png',
+  '/styles.css',
+  '/app.js',
+  '/map.js',
+  '/db.js',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js',
+  'https://unpkg.com/dexie@3.2.2/dist/dexie.min.js'
 ];
 
-self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing', CACHE_NAME);
+// Install event: Cache assets
+self.addEventListener('install', event => {
+  console.log('Service Worker: Installing ' + CACHE_NAME);
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Service Worker: Caching assets', APP_STATIC_RESOURCES);
-      return cache.addAll(APP_STATIC_RESOURCES).catch((error) => {
-        console.error('Service Worker: Cache addAll failed', error);
-      });
+    caches.open(CACHE_NAME).then(cache => {
+      console.log('Service Worker: Caching assets (' + assets.length + ')', assets);
+      return cache.addAll(assets);
     })
   );
-  self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating', CACHE_NAME);
+// Activate event: Clean up old caches
+self.addEventListener('activate', event => {
+  console.log('Service Worker: Activating ' + CACHE_NAME);
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.filter((name) => name !== CACHE_NAME).map((name) => {
-          console.log('Service Worker: Deleting old cache', name);
-          return caches.delete(name);
-        })
+        cacheNames
+          .filter(name => name !== CACHE_NAME)
+          .map(name => caches.delete(name))
       );
     })
   );
-  self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') {
-    console.log('Service Worker: Skipping non-GET request', event.request.url);
-    return;
-  }
-  if (event.request.url.includes('supabase.co')) {
-    console.log('Service Worker: Handling Supabase fetch', event.request.url);
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          console.log('Service Worker: Serving Supabase from cache', event.request.url);
-          return cachedResponse;
-        }
-        console.log('Service Worker: Fetching Supabase from network', event.request.url);
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            return caches.open('map-cache').then((cache) => {
-              console.log('Service Worker: Caching Supabase', event.request.url);
-              cache.put(event.request, networkResponse.clone());
-              return networkResponse;
-            });
-          }
+// Fetch event: Serve from cache or network
+self.addEventListener('fetch', event => {
+  console.log('Service Worker: Fetching ' + event.request.url);
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      if (response) {
+        console.log('Service Worker: Serving from cache ' + event.request.url);
+        return response;
+      }
+      console.log('Service Worker: Fetching from network ' + event.request.url);
+      return fetch(event.request).then(networkResponse => {
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
           return networkResponse;
-        }).catch((error) => {
-          console.error('Service Worker: Supabase fetch failed', event.request.url, error);
-          return new Response('Offline and no cached Supabase resource available.', { status: 503 });
-        });
-      })
-    );
-  } else {
-    console.log('Service Worker: Fetching', event.request.url);
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          console.log('Service Worker: Serving from cache', event.request.url);
-          return cachedResponse;
         }
-        console.log('Service Worker: Fetching from network', event.request.url);
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            return caches.open(CACHE_NAME).then((cache) => {
-              console.log('Service Worker: Caching', event.request.url);
-              cache.put(event.request, networkResponse.clone());
-              return networkResponse;
-            });
-          }
-          return networkResponse;
-        }).catch((error) => {
-          console.error('Service Worker: Fetch failed', event.request.url, error);
-          if (event.request.mode === 'navigate') {
-            console.log('Service Worker: Falling back to /index.html');
-            return caches.match('/index.html');
-          }
-          if (event.request.url.includes('ganton-logo-v3.jpg')) {
-            console.log('Service Worker: No fallback for ganton-logo-v3.jpg');
-          }
-          return new Response('Offline and no cached resource available.', { status: 503 });
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseToCache);
+          console.log('Service Worker: Caching ' + event.request.url);
         });
-      })
-    );
-  }
+        return networkResponse;
+      });
+    })
+  );
 });
