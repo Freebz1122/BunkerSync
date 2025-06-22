@@ -10,38 +10,36 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.min.js"></script>
   <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCGCEfGFvy6rrRelPFrOg_F9h5j1KY_a3g",
-  authDomain: "bunkersync-37ed5.firebaseapp.com",
-  projectId: "bunkersync-37ed5",
-  storageBucket: "bunkersync-37ed5.firebasestorage.app",
-  messagingSenderId: "273826332290",
-  appId: "1:273826332290:web:0a679097e3ba7545cebe9b"
-};
+    window.env = {
+      FIREBASE_API_KEY: "AIzaSyCGCEfGFvy6rrRelPFrOg_F9h5j1KY_a3g",
+      FIREBASE_AUTH_DOMAIN: "bunkersync-37ed5.firebaseapp.com",
+      FIREBASE_PROJECT_ID: "bunkersync-37ed5",
+      FIREBASE_MESSAGING_SENDER_ID: "273826332290",
+      FIREBASE_APP_ID: "1:273826332290:web:0a679097e3ba7545cebe9b",
+      NEXT_PUBLIC_SUPABASE_URL: "https://ejrrbnsvvzxqpqzlxweh.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcnJibnN2dnp4cXBxemx4d2VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MDgzMDksImV4cCI6MjA2NjE4NDMwOX0._wMsjmX4K7DgC3e9FrQBFoNDlQ0fGVrwZOJlIU2moTo"
+    };
   </script>
 </head>
 <body>
   <div id="login" class="p-4">
     <h1 class="text-2xl mb-4">Login</h1>
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="login()">Login</button>
+    <input type="email" id="email" placeholder="Email" class="mb-2 p-2 border" />
+    <input type="password" id="password" placeholder="Password" class="mb-2 p-2 border" />
+    <button onclick="login()" class="bg-blue-500 text-white p-2">Login</button>
   </div>
-
   <div id="dashboard" class="hidden p-4">
     <h1 class="text-2xl mb-4">Ganton GC Bunker Maintenance</h1>
-    <button onclick="auth.signOut()">Logout</button>
-    <button onclick="showAddCourse()">Add Course</button>
-
-    <div id="add-course" class="hidden">
-      <input id="course-name" placeholder="Course Name" />
-      <button onclick="addCourse(document.getElementById('course-name').value)">Add Course</button>
-      <button onclick="showUploadMap()">Upload Map</button>
+    <button onclick="logout()" class="bg-red-500 text-white p-2">Logout</button>
+    <button onclick="showAddCourse()" class="bg-green-500 text-white p-2 ml-2">Add Course</button>
+    <div id="add-course" class="hidden mt-4">
+      <input id="course-name" placeholder="Course Name" class="p-2 border" />
+      <button onclick="addCourse(document.getElementById('course-name').value)" class="bg-blue-500 text-white p-2">Add Course</button>
+      <button onclick="showUploadMap()" class="bg-blue-500 text-white p-2 ml-2">Upload Map</button>
     </div>
-
-    <div id="upload-map" class="hidden">
-      <input id="map-file" type="file" accept="image/*" />
-      <select id="hole-number">
+    <div id="upload-map" class="hidden mt-4">
+      <input id="map-file" type="file" accept="image/*" class="p-2" />
+      <select id="hole-number" class="p-2 border">
         <option value="1">Hole 1</option>
         <option value="2">Hole 2</option>
         <option value="3">Hole 3</option>
@@ -62,31 +60,29 @@ const firebaseConfig = {
         <option value="18">Hole 18</option>
         <option value="CG">CG</option>
       </select>
-      <button onclick="uploadMap(document.getElementById('map-file').files[0], window.currentCourseId, document.getElementById('hole-number').value)">Upload Map</button>
+      <button onclick="uploadMap(document.getElementById('map-file').files[0], window.currentCourseId, document.getElementById('hole-number').value)" class="bg-blue-500 text-white p-2">Upload Map</button>
     </div>
-
     <div id="tasks" class="mt-4">
       <h2 class="text-xl mb-2">Tasks</h2>
-      <div id="filter-tasks">
-        <button onclick="filterTasks('ALL')">ALL</button>
-        <button onclick="filterTasks('STRIM')">STRIM</button>
-        <button onclick="filterTasks('FLYMO')">FLYMO</button>
-        <button onclick="filterTasks('RAKE')">RAKE</button>
-        <button onclick="filterTasks('WEEDS')">WEEDS</button>
-        <button onclick="filterTasks('STONES')">STONES</button>
-        <button onclick="filterTasks('STEPS')">STEPS</button>
-        <button onclick="filterTasks('MOVE SAND')">MOVE SAND</button>
-        <button onclick="filterTasks('ADD SAND')">ADD SAND</button>
-        <button onclick="filterTasks('MANTIS')">MANTIS</button>
-        <button onclick="filterTasks('SPRAY FACE')">SPRAY FACE</button>
-        <button onclick="filterTasks('CONFIRM')">CONFIRM</button>
+      <div id="filter-tasks" class="flex flex-wrap gap-2">
+        <button onclick="filterTasks('ALL')" class="bg-gray-500 text-white p-1">ALL</button>
+        <button onclick="filterTasks('STRIM')" class="bg-gray-500 text-white p-1">STRIM</button>
+        <button onclick="filterTasks('FLYMO')" class="bg-gray-500 text-white p-1">FLYMO</button>
+        <button onclick="filterTasks('RAKE')" class="bg-gray-500 text-white p-1">RAKE</button>
+        <button onclick="filterTasks('WEEDS')" class="bg-gray-500 text-white p-1">WEEDS</button>
+        <button onclick="filterTasks('STONES')" class="bg-gray-500 text-white p-1">STONES</button>
+        <button onclick="filterTasks('STEPS')" class="bg-gray-500 text-white p-1">STEPS</button>
+        <button onclick="filterTasks('MOVE SAND')" class="bg-gray-500 text-white p-1">MOVE SAND</button>
+        <button onclick="filterTasks('ADD SAND')" class="bg-gray-500 text-white p-1">ADD SAND</button>
+        <button onclick="filterTasks('MANTIS')" class="bg-gray-500 text-white p-1">MANTIS</button>
+        <button onclick="filterTasks('SPRAY FACE')" class="bg-gray-500 text-white p-1">SPRAY FACE</button>
+        <button onclick="filterTasks('CONFIRM')" class="bg-gray-500 text-white p-1">CONFIRM</button>
       </div>
     </div>
-
     <div id="map-section" class="mt-4">
       <h2 class="text-xl mb-2">Map</h2>
       <div id="map" style="height: 400px;"></div>
-      <select id="hole-select" onchange="loadMap(this.value)">
+      <select id="hole-select" onchange="loadMap(this.value)" class="p-2 border mt-2">
         <option value="">Select Hole</option>
         <option value="1">1</option>
         <option value="2">2</option>
@@ -108,12 +104,11 @@ const firebaseConfig = {
         <option value="18">18</option>
         <option value="CG">CG</option>
       </select>
-      <button id="grid-toggle" onclick="toggleGrid()">Grid: Off</button>
+      <button id="grid-toggle" onclick="toggleGrid()" class="bg-blue-500 text-white p-2 ml-2">Grid: Off</button>
     </div>
-
     <div id="add-task" class="mt-4">
       <h2 class="text-xl mb-2">Add Task</h2>
-      <select id="task-type">
+      <select id="task-type" class="p-2 border">
         <option value="">SELECT TASKS</option>
         <option value="STRIM">STRIM</option>
         <option value="FLYMO">FLYMO</option>
@@ -127,21 +122,19 @@ const firebaseConfig = {
         <option value="SPRAY FACE">SPRAY FACE</option>
         <option value="CONFIRM">CONFIRM</option>
       </select>
-      <input id="task-description" placeholder="Task Description" />
-      <button onclick="addTask(window.currentCourseId, null, document.getElementById('task-type').value, document.getElementById('task-description').value)">Add Task</button>
-      <div class="mt-2">
-        <button onclick="updateTaskStatus('GREEN')">GREEN</button>
-        <button onclick="updateTaskStatus('AMBER')">AMBER</button>
-        <button onclick="updateTaskStatus('RED')">RED</button>
+      <input id="task-description" placeholder="Task Description" class="p-2 border ml-2" />
+      <button onclick="addTask(window.currentCourseId, null, document.getElementById('task-type').value, document.getElementById('task-description').value)" class="bg-blue-500 text-white p-2 ml-2">Add Task</button>
+      <div class="mt-2 flex gap-2">
+        <button onclick="updateTaskStatus('GREEN')" class="bg-green-500 text-white p-2">GREEN</button>
+        <button onclick="updateTaskStatus('AMBER')" class="bg-yellow-500 text-white p-2">AMBER</button>
+        <button onclick="updateTaskStatus('RED')" class="bg-red-500 text-white p-2">RED</button>
       </div>
     </div>
-
-    <div class="mt-4">
-      <button onclick="clearJobs()">CLEAR JOBS</button>
-      <button onclick="saveTasks()">SAVE</button>
+    <div class="mt-4 flex gap-2">
+      <button onclick="clearJobs()" class="bg-red-500 text-white p-2">CLEAR JOBS</button>
+      <button onclick="saveTasks()" class="bg-blue-500 text-white p-2">SAVE</button>
     </div>
   </div>
-
   <script type="module" src="app.js"></script>
   <script type="module" src="map.js"></script>
   <script>
