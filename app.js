@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { db } from './db.js';
 
@@ -33,14 +33,29 @@ window.login = async function() {
     alert('Login successful');
     window.currentUser = auth.currentUser;
     await syncOfflineData();
-    window.location.href = '/dashboard.html';
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
   } catch (error) {
     alert('Login failed: ' + error.message);
   }
 };
 
+// Logout function
+window.logout = async function() {
+  try {
+    await signOut(auth);
+    alert('Logged out');
+    window.currentUser = null;
+    window.currentCourseId = null;
+    document.getElementById('login').classList.remove('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
+  } catch (error) {
+    alert('Logout failed: ' + error.message);
+  }
+};
+
 // Add a new course
-async function addCourse(courseName) {
+window.addCourse = async function(courseName) {
   try {
     if (navigator.onLine) {
       const docRef = await addDoc(collection(firestore, 'courses'), {
@@ -61,10 +76,10 @@ async function addCourse(courseName) {
   } catch (error) {
     alert('Error adding course: ' + error.message);
   }
-}
+};
 
 // Upload map image to Supabase
-async function uploadMap(file, courseId, holeNumber) {
+window.uploadMap = async function(file, courseId, holeNumber) {
   if (!file || !file.type.match('image.*') || file.size > 500 * 1024) {
     alert('Only images under 500KB are allowed');
     return null;
@@ -84,10 +99,10 @@ async function uploadMap(file, courseId, holeNumber) {
     alert('Error uploading map: ' + error.message);
     return null;
   }
-}
+};
 
 // Add a bunker to a course
-async function addBunker(courseId, holeNumber, lat, lng) {
+window.addBunker = async function(courseId, holeNumber, lat, lng) {
   try {
     if (navigator.onLine) {
       const docRef = await addDoc(collection(firestore, `courses/${courseId}/bunkers`), {
@@ -106,10 +121,10 @@ async function addBunker(courseId, holeNumber, lat, lng) {
   } catch (error) {
     alert('Error adding bunker: ' + error.message);
   }
-}
+};
 
 // Add a task with offline support
-async function addTask(courseId, bunkerId, taskType, description) {
+window.addTask = async function(courseId, bunkerId, taskType, description) {
   try {
     if (navigator.onLine) {
       const docRef = await addDoc(collection(firestore, 'tasks'), {
@@ -148,10 +163,10 @@ async function addTask(courseId, bunkerId, taskType, description) {
   } catch (error) {
     alert('Error adding task: ' + error.message);
   }
-}
+};
 
 // Load courses
-async function loadCourses() {
+window.loadCourses = async function() {
   try {
     if (navigator.onLine) {
       const querySnapshot = await getDocs(collection(firestore, 'courses'));
@@ -169,7 +184,7 @@ async function loadCourses() {
     alert('Error loading courses: ' + error.message);
     return await db.courses.toArray();
   }
-}
+};
 
 // Sync offline data to Firestore
 async function syncOfflineData() {
@@ -212,14 +227,69 @@ async function syncOfflineData() {
   }
 }
 
+// UI functions
+window.showAddCourse = function() {
+  document.getElementById('add-course').classList.toggle('hidden');
+};
+
+window.showUploadMap = function() {
+  document.getElementById('upload-map').classList.toggle('hidden');
+};
+
+window.filterTasks = async function(type) {
+  try {
+    const tasks = type === 'ALL' ? await db.tasks.toArray() : await db.tasks.where('type').equals(type).toArray();
+    const tasksDiv = document.getElementById('tasks');
+    tasksDiv.innerHTML = '<h2 class="text-xl mb-2">Tasks</h2>';
+    tasks.forEach(task => {
+      const taskEl = document.createElement('div');
+      taskEl.textContent = `${task.type}: ${task.description} (${task.status})`;
+      tasksDiv.appendChild(taskEl);
+    });
+  } catch (error) {
+    alert('Error filtering tasks: ' + error.message);
+  }
+};
+
+window.updateTaskStatus = async function(status) {
+  try {
+    const taskId = prompt('Enter task ID to update:');
+    if (!taskId) return;
+    if (navigator.onLine) {
+      await updateDoc(doc(firestore, 'tasks', taskId), { status });
+      await db.tasks.update(taskId, { status });
+      alert(`Task ${taskId} updated to ${status}`);
+    } else {
+      await db.tasks.update(taskId, { status });
+      alert(`Task ${taskId} updated offline. Will sync when online.`);
+    }
+  } catch (error) {
+    alert('Error updating task: ' + error.message);
+  }
+};
+
+window.clearJobs = async function() {
+  try {
+    await db.tasks.clear();
+    if (navigator.onLine) {
+      // Note: Firestore tasks need manual deletion or a specific endpoint
+      alert('Local tasks cleared. Sync with Firestore manually.');
+    } else {
+      alert('Local tasks cleared offline.');
+    }
+  } catch (error) {
+    alert('Error clearing tasks: ' + error.message);
+  }
+};
+
+window.saveTasks = async function() {
+  await syncOfflineData();
+  alert('Tasks saved and synced.');
+};
+
 // Sync on connectivity change
 window.addEventListener('online', syncOfflineData);
 
 // Expose functions for global access
-window.addCourse = addCourse;
-window.uploadMap = uploadMap;
-window.addBunker = addBunker;
-window.addTask = addTask;
-window.loadCourses = loadCourses;
-
+window.auth = auth; // For logout
 export { supabase, firestore }; // For map.js
