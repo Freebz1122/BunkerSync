@@ -272,7 +272,6 @@ window.clearJobs = async function() {
   try {
     await db.tasks.clear();
     if (navigator.onLine) {
-      // Note: Firestore tasks need manual deletion or a specific endpoint
       alert('Local tasks cleared. Sync with Firestore manually.');
     } else {
       alert('Local tasks cleared offline.');
