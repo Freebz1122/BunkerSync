@@ -1,9 +1,10 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, arrayUnion, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+import { getFirestore, collection, addDoc, getDocs, doc } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import './db.js';
+import { db } from './db.js';
 
+// Firebase configuration
 const firebaseConfig = {
   apiKey: import.meta.env.FIREBASE_API_KEY,
   authDomain: import.meta.env.FIREBASE_AUTH_DOMAIN,
@@ -12,178 +13,208 @@ const firebaseConfig = {
   appId: import.meta.env.FIREBASE_APP_ID
 };
 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const firestore = getFirestore(app);
+
+// Initialize Supabase
 const supabase = createClient(
   import.meta.env.NEXT_PUBLIC_SUPABASE_URL,
   import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-export { db, auth, supabase };
-
-let currentCourseId = null;
-let currentHole = null;
-let currentUser = null;
-
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUser = user;
-    document.getElementById('login').style.display = 'none';
-    document.getElementById('admin-panel').style.display = user.email === 'admin@example.com' ? 'block' : 'none';
-    loadCourses();
-  } else {
-    document.getElementById('login').style.display = 'block';
-    document.getElementById('admin-panel').style.display = 'none';
-  }
-});
-
-async function login() {
+// Login function
+window.login = async function() {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   try {
     await signInWithEmailAndPassword(auth, email, password);
-    alert('Logged in successfully');
+    alert('Login successful');
+    await syncOfflineData();
+    window.location.href = '/dashboard.html'; // Adjust if needed
   } catch (error) {
     alert('Login failed: ' + error.message);
   }
-}
+};
 
-async function logout() {
-  await signOut(auth);
-}
-
-async function loadCourses() {
-  const courseSelect = document.getElementById('course-select');
-  const mapCourseSelect = document.getElementById('map-course-select');
-  const taskCourseSelect = document.getElementById('task-course-select');
-  courseSelect.innerHTML = '<option value="">Select Course</option>';
-  mapCourseSelect.innerHTML = '<option value="">Select Course</option>';
-  taskCourseSelect.innerHTML = '<option value="">Select Course</option>';
-  const courses = await getDocs(collection(db, 'courses'));
-  courses.forEach((doc) => {
-    const data = doc.data();
-    const option = document.createElement('option');
-    option.value = doc.id;
-    option.text = data.name;
-    courseSelect.appendChild(option);
-    mapCourseSelect.appendChild(option.cloneNode(true));
-    taskCourseSelect.appendChild(option.cloneNode(true));
-  });
-}
-
-async function loadCourse(courseId) {
-  currentCourseId = courseId;
-  const mapHoleSelect = document.getElementById('map-hole-select');
-  mapHoleSelect.innerHTML = '<option value="">Select Hole</option>';
-  const course = await getDoc(doc(db, 'courses', courseId));
-  if (course.exists()) {
-    const maps = course.data().maps || [];
-    maps.forEach((map) => {
-      const option = document.createElement('option');
-      option.value = map.hole;
-      option.text = `Hole ${map.hole}`;
-      mapHoleSelect.appendChild(option);
-    });
-  }
-  loadTasks();
-}
-
-function selectHole(hole) {
-  currentHole = hole;
-  loadMap(hole);
-}
-
-async function addCourse() {
-  const name = document.getElementById('course-name').value;
-  if (!name) {
-    alert('Enter a course name');
-    return;
-  }
+// Add a new course
+async function addCourse(courseName) {
   try {
-    const courseRef = doc(collection(db, 'courses'));
-    await setDoc(courseRef, { name, maps: [] });
-    alert('Course added');
-    loadCourses();
+    if (navigator.onLine) {
+      const docRef = await addDoc(collection(firestore, 'courses'), {
+        name: courseName,
+        createdAt: new Date()
+      });
+      await db.courses.add({ id: docRef.id, name: courseName, maps: [] });
+      alert('Course added: ' + courseName);
+      return docRef.id;
+    } else {
+      const tempId = 'offline_' + Date.now();
+      await db.courses.add({ id: tempId, name: courseName, maps: [] });
+      alert('Course saved offline. Will sync when online.');
+      return tempId;
+    }
   } catch (error) {
     alert('Error adding course: ' + error.message);
   }
 }
 
-async function uploadMap() {
-  const file = document.getElementById('map-file').files[0];
-  if (!file || !file.type.match('image.*') || file.size > 100 * 1024) {
-    alert('Only images under 100KB are allowed');
-    return;
-  }
-  if (!currentCourseId || !currentUser || currentUser.email !== 'admin@example.com') {
-    alert('Admin access required');
-    return;
-  }
-  const hole = document.getElementById('hole-number').value;
-  if (!hole) {
-    alert('Select a hole number');
-    return;
+// Upload map image to Supabase
+async function uploadMap(file, courseId, holeNumber) {
+  if (!file || !file.type.match('image.*') || file.size > 500 * 1024) {
+    alert('Only images under 500KB are allowed');
+    return null;
   }
   try {
+    const fileName = `course_${courseId}_hole_${holeNumber}_${Date.now()}.${file.name.split('.').pop()}`;
     const { data, error } = await supabase.storage
       .from('maps')
-      .upload(`images/${currentCourseId}/hole${hole}.jpg`, file, { upsert: true });
+      .upload(fileName, file);
     if (error) throw error;
-    const { data: urlData } = supabase.storage
-      .from('maps')
-      .getPublicUrl(`images/${currentCourseId}/hole${hole}.jpg`);
-    const url = urlData.publicUrl;
-    const courseRef = doc(db, 'courses', currentCourseId);
-    await updateDoc(courseRef, {
-      maps: arrayUnion({ hole: parseInt(hole), url })
+    const { publicUrl } = supabase.storage.from('maps').getPublicUrl(fileName).data;
+    await db.courses.update(courseId, {
+      maps: db.courses.get(courseId).then(c => [...(c.maps || []), { holeNumber, url: publicUrl }])
     });
-    alert('Map uploaded successfully');
+    return publicUrl;
   } catch (error) {
-    alert('Upload failed: ' + error.message);
+    alert('Error uploading map: ' + error.message);
+    return null;
   }
 }
 
-async function addTask() {
-  const description = document.getElementById('task-description').value;
-  const type = document.getElementById('task-type').value;
-  if (!description || !type || !currentCourseId) {
-    alert('Enter task details and select a course');
-    return;
-  }
+// Add a bunker to a course
+async function addBunker(courseId, holeNumber, lat, lng) {
   try {
-    await localDB.tasks.add({
-      courseId: currentCourseId,
-      description,
-      type,
-      status: 'pending',
-      timestamp: new Date().toISOString()
-    });
-    loadTasks();
+    if (navigator.onLine) {
+      const docRef = await addDoc(collection(firestore, `courses/${courseId}/bunkers`), {
+        holeNumber,
+        lat,
+        lng,
+        createdAt: new Date()
+      });
+      await db.bunkers.add({ id: docRef.id, courseId, holeNumber, lat, lng });
+      return docRef.id;
+    } else {
+      const tempId = 'offline_' + Date.now();
+      await db.bunkers.add({ id: tempId, courseId, holeNumber, lat, lng });
+      return tempId;
+    }
+  } catch (error) {
+    alert('Error adding bunker: ' + error.message);
+  }
+}
+
+// Add a task with offline support
+async function addTask(courseId, bunkerId, taskType, description) {
+  try {
+    if (navigator.onLine) {
+      const docRef = await addDoc(collection(firestore, 'tasks'), {
+        courseId,
+        bunkerId,
+        taskType,
+        description,
+        createdAt: new Date(),
+        status: 'pending'
+      });
+      await db.tasks.add({
+        id: docRef.id,
+        courseId,
+        bunkerId,
+        description,
+        type: taskType,
+        status: 'synced',
+        timestamp: Date.now()
+      });
+      alert('Task added: ' + description);
+      return docRef.id;
+    } else {
+      const tempId = 'offline_' + Date.now();
+      await db.tasks.add({
+        id: tempId,
+        courseId,
+        bunkerId,
+        description,
+        type: taskType,
+        status: 'pending',
+        timestamp: Date.now()
+      });
+      alert('Task saved offline. Will sync when online.');
+      return tempId;
+    }
   } catch (error) {
     alert('Error adding task: ' + error.message);
   }
 }
 
-async function loadTasks() {
-  const taskList = document.getElementById('task-list');
-  taskList.innerHTML = '';
-  const tasks = await localDB.tasks.toArray();
-  const filteredTasks = currentCourseId
-    ? tasks.filter((task) => task.courseId === currentCourseId)
-    : tasks;
-  filteredTasks.forEach((task) => {
-    const li = document.createElement('li');
-    li.textContent = `${task.description} (${task.type}, ${task.status})`;
-    taskList.appendChild(li);
-  });
+// Load courses
+async function loadCourses() {
+  try {
+    if (navigator.onLine) {
+      const querySnapshot = await getDocs(collection(firestore, 'courses'));
+      const courses = [];
+      querySnapshot.forEach(doc => {
+        courses.push({ id: doc.id, ...doc.data() });
+      });
+      await db.courses.clear();
+      await db.courses.bulkAdd(courses.map(c => ({ id: c.id, name: c.name, maps: c.maps || [] })));
+      return courses;
+    } else {
+      return await db.courses.toArray();
+    }
+  } catch (error) {
+    alert('Error loading courses: ' + error.message);
+    return await db.courses.toArray();
+  }
 }
 
-window.login = login;
-window.logout = logout;
-window.loadCourse = loadCourse;
-window.selectHole = selectHole;
+// Sync offline data to Firestore
+async function syncOfflineData() {
+  try {
+    // Sync courses
+    const offlineCourses = await db.courses.where('id').startsWith('offline_').toArray();
+    for (const course of offlineCourses) {
+      const docRef = await addDoc(collection(firestore, 'courses'), {
+        name: course.name,
+        createdAt: new Date()
+      });
+      await db.courses.update(course.id, { id: docRef.id });
+    }
+    // Sync bunkers
+    const offlineBunkers = await db.bunkers.where('id').startsWith('offline_').toArray();
+    for (const bunker of offlineBunkers) {
+      const docRef = await addDoc(collection(firestore, `courses/${bunker.courseId}/bunkers`), {
+        holeNumber: bunker.holeNumber,
+        lat: bunker.lat,
+        lng: bunker.lng,
+        createdAt: new Date()
+      });
+      await db.bunkers.update(bunker.id, { id: docRef.id });
+    }
+    // Sync tasks
+    const offlineTasks = await db.tasks.where('status').equals('pending').toArray();
+    for (const task of offlineTasks) {
+      const docRef = await addDoc(collection(firestore, 'tasks'), {
+        courseId: task.courseId,
+        bunkerId: task.bunkerId,
+        taskType: task.type,
+        description: task.description,
+        createdAt: new Date(),
+        status: 'pending'
+      });
+      await db.tasks.update(task.id, { id: docRef.id, status: 'synced' });
+    }
+  } catch (error) {
+    console.error('Error syncing offline data:', error);
+  }
+}
+
+// Sync on connectivity change
+window.addEventListener('online', syncOfflineData);
+
+// Expose functions for global access
 window.addCourse = addCourse;
 window.uploadMap = uploadMap;
+window.addBunker = addBunker;
 window.addTask = addTask;
-window.loadTasks = loadTasks;
+window.loadCourses = loadCourses;
