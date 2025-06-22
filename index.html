@@ -4,35 +4,118 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ganton GC Bunker Maintenance</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="/app.js"></script>
-  <script type="module" src="/map.js"></script>
-  <link rel="manifest" href="/manifest.json">
+  <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.min.js"></script>
+  <script>
+    window.env = {
+      FIREBASE_API_KEY: 'your_firebase_api_key',
+      FIREBASE_AUTH_DOMAIN: 'your-project-id.firebaseapp.com',
+      FIREBASE_PROJECT_ID: 'your-project-id',
+      FIREBASE_MESSAGING_SENDER_ID: 'your-messaging-sender-id',
+      FIREBASE_APP_ID: 'your-app-id',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://your-project-id.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOi...'
+    };
+  </script>
 </head>
 <body>
-  <div id="login" style="display: block;">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
+  <div id="login" class="p-4">
+    <h1 class="text-2xl mb-4">Login</h1>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
     <button onclick="login()">Login</button>
   </div>
-  <div id="admin-panel" style="display: none;">
-    <h1>Ganton GC Bunker Maintenance</h1>
-    <button onclick="logout()">Logout</button>
-    <h2>Add Course</h2>
-    <input type="text" id="course-name" placeholder="Course Name">
-    <button onclick="addCourse()">Add Course</button>
-    <h2>Upload Map</h2>
-    <select id="course-select"></select>
-    <input type="number" id="hole-number" placeholder="Hole Number">
-    <input type="file" id="map-file" accept="image/*">
-    <button onclick="uploadMap()">Upload Map</button>
-    <h2>Tasks</h2>
-    <div>
-      <label>FILTER TASKS</label>
-      <select id="task-filter">
-        <option value="">ALL</option>
+
+  <div id="dashboard" class="hidden p-4">
+    <h1 class="text-2xl mb-4">Ganton GC Bunker Maintenance</h1>
+    <button onclick="auth.signOut()">Logout</button>
+    <button onclick="showAddCourse()">Add Course</button>
+
+    <div id="add-course" class="hidden">
+      <input id="course-name" placeholder="Course Name" />
+      <button onclick="addCourse(document.getElementById('course-name').value)">Add Course</button>
+      <button onclick="showUploadMap()">Upload Map</button>
+    </div>
+
+    <div id="upload-map" class="hidden">
+      <input id="map-file" type="file" accept="image/*" />
+      <select id="hole-number">
+        <option value="1">Hole 1</option>
+        <option value="2">Hole 2</option>
+        <option value="3">Hole 3</option>
+        <option value="4">Hole 4</option>
+        <option value="5">Hole 5</option>
+        <option value="6">Hole 6</option>
+        <option value="7">Hole 7</option>
+        <option value="8">Hole 8</option>
+        <option value="9">Hole 9</option>
+        <option value="10">Hole 10</option>
+        <option value="11">Hole 11</option>
+        <option value="12">Hole 12</option>
+        <option value="13">Hole 13</option>
+        <option value="14">Hole 14</option>
+        <option value="15">Hole 15</option>
+        <option value="16">Hole 16</option>
+        <option value="17">Hole 17</option>
+        <option value="18">Hole 18</option>
+        <option value="CG">CG</option>
+      </select>
+      <button onclick="uploadMap(document.getElementById('map-file').files[0], window.currentCourseId, document.getElementById('hole-number').value)">Upload Map</button>
+    </div>
+
+    <div id="tasks" class="mt-4">
+      <h2 class="text-xl mb-2">Tasks</h2>
+      <div id="filter-tasks">
+        <button onclick="filterTasks('ALL')">ALL</button>
+        <button onclick="filterTasks('STRIM')">STRIM</button>
+        <button onclick="filterTasks('FLYMO')">FLYMO</button>
+        <button onclick="filterTasks('RAKE')">RAKE</button>
+        <button onclick="filterTasks('WEEDS')">WEEDS</button>
+        <button onclick="filterTasks('STONES')">STONES</button>
+        <button onclick="filterTasks('STEPS')">STEPS</button>
+        <button onclick="filterTasks('MOVE SAND')">MOVE SAND</button>
+        <button onclick="filterTasks('ADD SAND')">ADD SAND</button>
+        <button onclick="filterTasks('MANTIS')">MANTIS</button>
+        <button onclick="filterTasks('SPRAY FACE')">SPRAY FACE</button>
+        <button onclick="filterTasks('CONFIRM')">CONFIRM</button>
+      </div>
+    </div>
+
+    <div id="map-section" class="mt-4">
+      <h2 class="text-xl mb-2">Map</h2>
+      <div id="map" style="height: 400px;"></div>
+      <select id="hole-select" onchange="loadMap(this.value)">
+        <option value="">Select Hole</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+        <option value="11">11</option>
+        <option value="12">12</option>
+        <option value="13">13</option>
+        <option value="14">14</option>
+        <option value="15">15</option>
+        <option value="16">16</option>
+        <option value="17">17</option>
+        <option value="18">18</option>
+        <option value="CG">CG</option>
+      </select>
+      <button id="grid-toggle" onclick="toggleGrid()">Grid: Off</button>
+    </div>
+
+    <div id="add-task" class="mt-4">
+      <h2 class="text-xl mb-2">Add Task</h2>
+      <select id="task-type">
+        <option value="">SELECT TASKS</option>
         <option value="STRIM">STRIM</option>
         <option value="FLYMO">FLYMO</option>
         <option value="RAKE">RAKE</option>
@@ -45,63 +128,32 @@
         <option value="SPRAY FACE">SPRAY FACE</option>
         <option value="CONFIRM">CONFIRM</option>
       </select>
+      <input id="task-description" placeholder="Task Description" />
+      <button onclick="addTask(window.currentCourseId, null, document.getElementById('task-type').value, document.getElementById('task-description').value)">Add Task</button>
+      <div class="mt-2">
+        <button onclick="updateTaskStatus('GREEN')">GREEN</button>
+        <button onclick="updateTaskStatus('AMBER')">AMBER</button>
+        <button onclick="updateTaskStatus('RED')">RED</button>
+      </div>
     </div>
-    <select id="task-course-select"></select>
-    <h2>Map</h2>
-    <select id="map-course-select" onchange="loadCourse(this.value)"></select>
-    <select id="map-hole-select" onchange="selectHole(this.value)">
-      <option value="">Select Hole</option>
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3">3</option>
-      <option value="4">4</option>
-      <option value="5">5</option>
-      <option value="6">6</option>
-      <option value="7">7</option>
-      <option value="8">8</option>
-      <option value="9">9</option>
-      <option value="10">10</option>
-      <option value="11">11</option>
-      <option value="12">12</option>
-      <option value="13">13</option>
-      <option value="14">14</option>
-      <option value="15">15</option>
-      <option value="16">16</option>
-      <option value="17">17</option>
-      <option value="18">18</option>
-      <option value="CG">CG</option>
-    </select>
-    <button onclick="toggleGrid()">Grid: Off</button>
-    <div id="map" style="height: 400px;"></div>
-    <h2>Add Task</h2>
-    <select id="task-type">
-      <option value="">SELECT TASKS</option>
-      <option value="STRIM">STRIM</option>
-      <option value="FLYMO">FLYMO</option>
-      <option value="RAKE">RAKE</option>
-      <option value="WEEDS">WEEDS</option>
-      <option value="STONES">STONES</option>
-      <option value="STEPS">STEPS</option>
-      <option value="MOVE SAND">MOVE SAND</option>
-      <option value="ADD SAND">ADD SAND</option>
-      <option value="MANTIS">MANTIS</option>
-      <option value="SPRAY FACE">SPRAY FACE</option>
-      <option value="CONFIRM">CONFIRM</option>
-    </select>
-    <input type="text" id="task-description" placeholder="Task Description">
-    <button onclick="addTask()">Add Task</button>
-    <div>
-      <button onclick="setTaskStatus('GREEN')">GREEN</button>
-      <button onclick="setTaskStatus('AMBER')">AMBER</button>
-      <button onclick="setTaskStatus('RED')">RED</button>
+
+    <div class="mt-4">
+      <button onclick="clearJobs()">CLEAR JOBS</button>
+      <button onclick="saveTasks()">SAVE</button>
     </div>
-    <ul id="task-list"></ul>
-    <button onclick="clearTasks()">CLEAR JOBS</button>
-    <button onclick="saveTasks()">SAVE</button>
   </div>
+
+  <script type="module" src="app.js"></script>
+  <script type="module" src="map.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js');
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('Service Worker registered:', reg);
+        }).catch(err => {
+          console.error('Service Worker registration failed:', err);
+        });
+      });
     }
   </script>
 </body>
