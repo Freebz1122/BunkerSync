@@ -1,16 +1,16 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, doc } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { db } from './db.js';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.FIREBASE_API_KEY,
-  authDomain: import.meta.env.FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.FIREBASE_PROJECT_ID,
-  messagingSenderId: import.meta.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.FIREBASE_APP_ID
+  apiKey: window.env.FIREBASE_API_KEY,
+  authDomain: window.env.FIREBASE_AUTH_DOMAIN,
+  projectId: window.env.FIREBASE_PROJECT_ID,
+  messagingSenderId: window.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: window.env.FIREBASE_APP_ID
 };
 
 // Initialize Firebase
@@ -20,8 +20,8 @@ const firestore = getFirestore(app);
 
 // Initialize Supabase
 const supabase = createClient(
-  import.meta.env.NEXT_PUBLIC_SUPABASE_URL,
-  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  window.env.NEXT_PUBLIC_SUPABASE_URL,
+  window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 // Login function
@@ -31,8 +31,9 @@ window.login = async function() {
   try {
     await signInWithEmailAndPassword(auth, email, password);
     alert('Login successful');
+    window.currentUser = auth.currentUser;
     await syncOfflineData();
-    window.location.href = '/dashboard.html'; // Adjust if needed
+    window.location.href = '/dashboard.html';
   } catch (error) {
     alert('Login failed: ' + error.message);
   }
@@ -48,11 +49,13 @@ async function addCourse(courseName) {
       });
       await db.courses.add({ id: docRef.id, name: courseName, maps: [] });
       alert('Course added: ' + courseName);
+      window.currentCourseId = docRef.id;
       return docRef.id;
     } else {
       const tempId = 'offline_' + Date.now();
       await db.courses.add({ id: tempId, name: courseName, maps: [] });
       alert('Course saved offline. Will sync when online.');
+      window.currentCourseId = tempId;
       return tempId;
     }
   } catch (error) {
@@ -218,3 +221,5 @@ window.uploadMap = uploadMap;
 window.addBunker = addBunker;
 window.addTask = addTask;
 window.loadCourses = loadCourses;
+
+export { supabase, firestore }; // For map.js
