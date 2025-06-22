@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply min-h-screen bg-gray-100;
+}
+
+button {
+  @apply transition duration-200 bg-blue-500 text-white px-4 py-2 rounded;
+}
+
+button:hover {
+  @apply opacity-80;
+}
+
+input, select {
+  @apply border border-gray-300 p-2 rounded w-full mb-2;
+}
+
+#map {
+  @apply w-full;
+}
