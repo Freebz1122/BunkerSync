@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ganton-bunker-v8'; // Increment version
+const CACHE_NAME = 'ganton-bunker-v8';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -9,8 +9,6 @@ const urlsToCache = [
   '/manifest.json',
   '/favicon.ico',
   '/images/home-icon.png',
-  '/images/icon-192.png',
-  '/images/icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/dexie@3.2.2/dist/dexie.min.js',
