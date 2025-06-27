@@ -1,10 +1,12 @@
-const CACHE_NAME = 'ganton-bunker-v8';
+```javascript
+const CACHE_NAME = 'ganton-bunker-v12';
 const urlsToCache = [
   '/',
   '/index.html',
   '/app.js',
   '/map.js',
   '/db.js',
+  '/task-panel.js',
   '/styles.css',
   '/manifest.json',
   '/favicon.ico',
@@ -45,7 +47,6 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Skip caching chrome-extension requests
   if (event.request.url.startsWith('chrome-extension://')) {
     event.respondWith(fetch(event.request));
     return;
@@ -66,8 +67,9 @@ self.addEventListener('fetch', event => {
         return fetchResponse;
       }).catch(error => {
         console.error('Service Worker: Fetch error', error, event.request.url);
-        return caches.match('/index.html'); // Fallback for navigation requests
+        return caches.match('/index.html');
       });
     })
   );
 });
+```

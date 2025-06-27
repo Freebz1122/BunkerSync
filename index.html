@@ -1,156 +1,118 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ganton GC Bunker Maintenance</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>BunkerSync</title>
+  <link rel="stylesheet" href="/styles.css">
   <link rel="manifest" href="/manifest.json">
-  <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.min.js"></script>
-<script>
-  window.env = {
-    FIREBASE_API_KEY: 'process.env.FIREBASE_API_KEY',
-    FIREBASE_AUTH_DOMAIN: 'process.env.FIREBASE_AUTH_DOMAIN',
-    FIREBASE_PROJECT_ID: 'process.env.FIREBASE_PROJECT_ID',
-    FIREBASE_MESSAGING_SENDER_ID: 'process.env.FIREBASE_MESSAGING_SENDER_ID',
-    FIREBASE_APP_ID: 'process.env.FIREBASE_APP_ID',
-    NEXT_PUBLIC_SUPABASE_URL: 'process.env.NEXT_PUBLIC_SUPABASE_URL',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY'
-  };
-  window.login = window.login || function() {
-    alert('Login function not loaded. Please refresh and try again.');
-  };
-</script>
+  <script type="module" src="/app.js"></script>
+  <script type="module" src="/map.js"></script>
+  <script type="module" src="/task-panel.js"></script>
+  <script src="/env.js"></script>
 </head>
 <body>
-  <div id="login" class="p-4">
-    <h1 class="text-2xl mb-4">Login</h1>
-    <input type="email" id="email" placeholder="Email" class="mb-2 p-2 border" />
-    <input type="password" id="password" placeholder="Password" class="mb-2 p-2 border" />
-    <button onclick="login()" class="bg-blue-500 text-white p-2">Login</button>
-  </div>
-  <div id="dashboard" class="hidden p-4">
-    <h1 class="text-2xl mb-4">Ganton GC Bunker Maintenance</h1>
-    <button onclick="logout()" class="bg-red-500 text-white p-2">Logout</button>
-    <button onclick="showAddCourse()" class="bg-green-500 text-white p-2 ml-2">Add Course</button>
-    <div id="add-course" class="hidden mt-4">
-      <input id="course-name" placeholder="Course Name" class="p-2 border" />
-      <button onclick="addCourse(document.getElementById('course-name').value)" class="bg-blue-500 text-white p-2">Add Course</button>
-      <button onclick="showUploadMap()" class="bg-blue-500 text-white p-2 ml-2">Upload Map</button>
-    </div>
-    <div id="upload-map" class="hidden mt-4">
-      <input id="map-file" type="file" accept="image/*" class="p-2" />
-      <select id="hole-number" class="p-2 border">
-        <option value="1">Hole 1</option>
-        <option value="2">Hole 2</option>
-        <option value="3">Hole 3</option>
-        <option value="4">Hole 4</option>
-        <option value="5">Hole 5</option>
-        <option value="6">Hole 6</option>
-        <option value="7">Hole 7</option>
-        <option value="8">Hole 8</option>
-        <option value="9">Hole 9</option>
-        <option value="10">Hole 10</option>
-        <option value="11">Hole 11</option>
-        <option value="12">Hole 12</option>
-        <option value="13">Hole 13</option>
-        <option value="14">Hole 14</option>
-        <option value="15">Hole 15</option>
-        <option value="16">Hole 16</option>
-        <option value="17">Hole 17</option>
-        <option value="18">Hole 18</option>
-        <option value="CG">CG</option>
-      </select>
-      <button onclick="uploadMap(document.getElementById('map-file').files[0], window.currentCourseId, document.getElementById('hole-number').value)" class="bg-blue-500 text-white p-2">Upload Map</button>
-    </div>
-    <div id="tasks" class="mt-4">
-      <h2 class="text-xl mb-2">Tasks</h2>
-      <div id="filter-tasks" class="flex flex-wrap gap-2">
-        <button onclick="filterTasks('ALL')" class="bg-gray-500 text-white p-1">ALL</button>
-        <button onclick="filterTasks('STRIM')" class="bg-gray-500 text-white p-1">STRIM</button>
-        <button onclick="filterTasks('FLYMO')" class="bg-gray-500 text-white p-1">FLYMO</button>
-        <button onclick="filterTasks('RAKE')" class="bg-gray-500 text-white p-1">RAKE</button>
-        <button onclick="filterTasks('WEEDS')" class="bg-gray-500 text-white p-1">WEEDS</button>
-        <button onclick="filterTasks('STONES')" class="bg-gray-500 text-white p-1">STONES</button>
-        <button onclick="filterTasks('STEPS')" class="bg-gray-500 text-white p-1">STEPS</button>
-        <button onclick="filterTasks('MOVE SAND')" class="bg-gray-500 text-white p-1">MOVE SAND</button>
-        <button onclick="filterTasks('ADD SAND')" class="bg-gray-500 text-white p-1">ADD SAND</button>
-        <button onclick="filterTasks('MANTIS')" class="bg-gray-500 text-white p-1">MANTIS</button>
-        <button onclick="filterTasks('SPRAY FACE')" class="bg-gray-500 text-white p-1">SPRAY FACE</button>
-        <button onclick="filterTasks('CONFIRM')" class="bg-gray-500 text-white p-1">CONFIRM</button>
-      </div>
-    </div>
-    <div id="map-section" class="mt-4">
-      <h2 class="text-xl mb-2">Map</h2>
-      <div id="map" style="height: 400px;"></div>
-      <select id="hole-select" onchange="loadMap(this.value)" class="p-2 border mt-2">
-        <option value="">Select Hole</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8</option>
-        <option value="9">9</option>
-        <option value="10">10</option>
-        <option value="11">11</option>
-        <option value="12">12</option>
-        <option value="13">13</option>
-        <option value="14">14</option>
-        <option value="15">15</option>
-        <option value="16">16</option>
-        <option value="17">17</option>
-        <option value="18">18</option>
-        <option value="CG">CG</option>
-      </select>
-      <button id="grid-toggle" onclick="toggleGrid()" class="bg-blue-500 text-white p-2 ml-2">Grid: Off</button>
-    </div>
-    <div id="add-task" class="mt-4">
-      <h2 class="text-xl mb-2">Add Task</h2>
-      <select id="task-type" class="p-2 border">
-        <option value="">SELECT TASKS</option>
-        <option value="STRIM">STRIM</option>
-        <option value="FLYMO">FLYMO</option>
-        <option value="RAKE">RAKE</option>
-        <option value="WEEDS">WEEDS</option>
-        <option value="STONES">STONES</option>
-        <option value="STEPS">STEPS</option>
-        <option value="MOVE SAND">MOVE SAND</option>
-        <option value="ADD SAND">ADD SAND</option>
-        <option value="MANTIS">MANTIS</option>
-        <option value="SPRAY FACE">SPRAY FACE</option>
-        <option value="CONFIRM">CONFIRM</option>
-      </select>
-      <input id="task-description" placeholder="Task Description" class="p-2 border ml-2" />
-      <button onclick="addTask(window.currentCourseId, null, document.getElementById('task-type').value, document.getElementById('task-description').value)" class="bg-blue-500 text-white p-2 ml-2">Add Task</button>
-      <div class="mt-2 flex gap-2">
-        <button onclick="updateTaskStatus('GREEN')" class="bg-green-500 text-white p-2">GREEN</button>
-        <button onclick="updateTaskStatus('AMBER')" class="bg-yellow-500 text-white p-2">AMBER</button>
-        <button onclick="updateTaskStatus('RED')" class="bg-red-500 text-white p-2">RED</button>
-      </div>
-    </div>
-    <div class="mt-4 flex gap-2">
-      <button onclick="clearJobs()" class="bg-red-500 text-white p-2">CLEAR JOBS</button>
-      <button onclick="saveTasks()" class="bg-blue-500 text-white p-2">SAVE</button>
+  <div id="login">
+    <div class="card">
+      <h2>Login</h2>
+      <input type="email" id="email" placeholder="Email">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="login()">Login</button>
     </div>
   </div>
-  <script type="module" src="app.js"></script>
-  <script type="module" src="map.js"></script>
+
+  <div id="dashboard" class="hidden">
+    <header>
+      <h1>BunkerSync Dashboard</h1>
+    </header>
+    <main>
+      <section id="add-course" class="card hidden">
+        <h2>Add Course</h2>
+        <input type="text" id="course-name" placeholder="Course Name">
+        <button onclick="addCourse(document.getElementById('course-name').value)">Save</button>
+      </section>
+
+      <section id="upload-map" class="card hidden">
+        <h2>Upload Map</h2>
+        <select id="hole-number">
+          <option value="">Select hole</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <input type="file" id="map-file" accept="image/*">
+        <button onclick="handleMapUpload()">Upload Map</button>
+      </section>
+
+      <section id="tasks" class="card hidden">
+        <h2>Tasks</h2>
+        <button id="add-task-btn" class="mb-3">Add Task</button>
+        <ul id="task-list"></ul>
+        <p class="status-legend">Status Legend: <span class="urgent">🔴 Urgent</span>  <span class="needs-attention">🟠 Needs Attention</span>  <span class="ok">🟢 OK</span></p>
+      </section>
+
+      <section id="map-section" class="card">
+        <h2>Map</h2>
+        <select id="hole-select" onchange="loadMap(this.value)">
+          <option value="">Select Hole</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <div id="map"></div>
+        <button onclick="toggleGrid()">Grid: Off</button>
+      </section>
+
+      <section id="settings" class="card">
+        <h2>Settings</h2>
+        <label>Course ID: <span id="course-id"></span></label>
+        <select id="settings-hole-select">
+          <option value="">Select hole</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <input type="file" id="settings-map-file" accept="image/*">
+        <button onclick="handleMapUpload()">Upload Map</button>
+        <label>Bunker Count: <input type="number" id="bunker-count"></label>
+        <button onclick="startPlacingBunkers()">Place Bunkers</button>
+        <button id="save-bunkers-btn" class="hidden">Save Bunkers</button>
+      </section>
+
+      <section id="courses" class="card">
+        <h2>Courses</h2>
+        <ul id="course-list"></ul>
+      </section>
+    </main>
+
+    <nav>
+      <div class="nav-item" onclick="document.getElementById('tasks').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#tasks)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#tasks-icon"></use></svg>
+        Tasks
+      </div>
+      <div class="nav-item" onclick="document.getElementById('map-section').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#map-section)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#map-icon"></use></svg>
+        Map
+      </div>
+      <div class="nav-item" onclick="document.getElementById('settings').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#settings)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#settings-icon"></use></svg>
+        Settings
+      </div>
+      <div class="nav-item" onclick="document.getElementById('courses').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#courses)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#courses-icon"></use></svg>
+        Courses
+      </div>
+    </nav>
+  </div>
+
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(reg => {
-          console.log('Service Worker registered:', reg);
-        }).catch(err => {
-          console.error('Service Worker registration failed:', err);
-        });
-      });
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker registered:', reg))
+        .catch(err => console.error('Service Worker registration failed:', err));
     }
   </script>
 </body>
 </html>
+```

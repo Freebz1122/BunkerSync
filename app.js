@@ -1,10 +1,10 @@
+```javascript
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { db } from './db.js';
 
-// Firebase configuration
 const firebaseConfig = {
   apiKey: window.env.FIREBASE_API_KEY,
   authDomain: window.env.FIREBASE_AUTH_DOMAIN,
@@ -13,140 +13,122 @@ const firebaseConfig = {
   appId: window.env.FIREBASE_APP_ID
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
+window.firestore = firestore;
 
-// Initialize Supabase
 let supabase;
 try {
-  if (!window.env.NEXT_PUBLIC_SUPABASE_URL || !window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error('Supabase URL or Anon Key is undefined');
-  }
   supabase = createClient(
     window.env.NEXT_PUBLIC_SUPABASE_URL,
     window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
+  window.supabase = supabase;
 } catch (error) {
-  console.error('Supabase initialization failed:', error);
+  console.error('Supabase init failed:', error);
 }
 
-// Login function
-window.login = async function() {
+window.showAddCourse = () => {
+  document.getElementById('add-course').classList.toggle('hidden');
+};
+
+window.showUploadMap = () => {
+  document.getElementById('upload-map').classList.toggle('hidden');
+};
+
+window.login = async () => {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     window.currentUser = userCredential.user;
-    alert('Login successful');
-    window.location.href = '/dashboard.html';
-  } catch (error) {
-    alert('Login failed: ' + error.message);
+    console.log('Logged in user:', window.currentUser.uid);
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    fetchCourses().then(displayCourses);
+  } catch (e) {
+    alert('Login failed: ' + e.message);
   }
 };
 
-// Add course
-window.addCourse = async function(courseName) {
+window.addCourse = async (courseName) => {
+  if (!window.currentUser) return alert('Login first.');
   try {
     const docRef = await addDoc(collection(firestore, 'courses'), {
       name: courseName,
       createdBy: window.currentUser.uid,
       createdAt: new Date()
     });
-    await db.courses.put({
-      id: docRef.id,
-      name: courseName
-    });
+    window.currentCourseId = docRef.id;
+    await db.courses.put({ id: docRef.id, name: courseName });
     alert('Course added');
-    return docRef.id;
-  } catch (error) {
-    console.error('Error adding course:', error);
-    alert('Failed to add course');
+    fetchCourses().then(displayCourses);
+  } catch (e) {
+    console.error('Add course failed:', e);
   }
 };
 
-// Upload map to Supabase
-window.uploadMap = async function(courseId, file) {
-  if (!supabase) {
-    alert('Supabase not initialized');
-    return;
-  }
+window.handleMapUpload = async () => {
+  const file = document.getElementById('map-file').files[0];
+  const hole = document.getElementById('hole-number').value;
+  const courseId = window.currentCourseId;
+  if (!file || !hole || !courseId) return alert('Select file, hole, and course');
   try {
-    const fileName = `${courseId}/${file.name}`;
-    const { data, error } = await supabase.storage
-      .from('maps')
-      .upload(fileName, file);
-    if (error) throw error;
-    const { data: urlData } = supabase.storage
-      .from('maps')
-      .getPublicUrl(fileName);
-    await db.maps.put({
-      id: fileName,
-      courseId,
-      url: urlData.publicUrl
-    });
+    const fileName = `${courseId}/hole-${hole}-${file.name}`;
+    const { error } = await supabase.storage.from('maps').upload(fileName, file);
+    if (error) {
+      console.error('Supabase upload failed:', error);
+      alert('Upload failed: ' + error.message);
+      throw error;
+    }
+    const { data } = supabase.storage.from('maps').getPublicUrl(fileName);
+    await db.maps.put({ id: fileName, courseId, url: data.publicUrl, holeNumber: hole });
     alert('Map uploaded');
-    return urlData.publicUrl;
-  } catch (error) {
-    console.error('Error uploading map:', error);
-    alert('Failed to upload map');
+  } catch (e) {
+    console.error('Error uploading map:', e);
+    alert('Upload failed');
   }
 };
 
-// Add task
-window.addTask = async function(courseId, bunkerId, description, type) {
+window.fetchCourses = async () => {
   try {
-    const docRef = await addDoc(collection(firestore, 'tasks'), {
-      courseId,
-      bunkerId,
-      description,
-      type,
-      status: 'pending',
-      createdBy: window.currentUser.uid,
-      timestamp: new Date()
-    });
-    await db.tasks.put({
-      id: docRef.id,
-      courseId,
-      bunkerId,
-      description,
-      type,
-      status: 'pending',
-      timestamp: new Date()
-    });
-    alert('Task added');
-  } catch (error) {
-    console.error('Error adding task:', error);
-    alert('Failed to add task');
-  }
-};
-
-// Fetch courses
-window.fetchCourses = async function() {
-  try {
-    const querySnapshot = await getDocs(collection(firestore, 'courses'));
+    const snapshot = await getDocs(collection(firestore, 'courses'));
     const courses = [];
-    querySnapshot.forEach(doc => {
-      courses.push({ id: doc.id, ...doc.data() });
-    });
+    snapshot.forEach(doc => courses.push({ id: doc.id, ...doc.data() }));
     await db.courses.bulkPut(courses);
     return courses;
-  } catch (error) {
-    console.error('Error fetching courses:', error);
+  } catch (e) {
+    console.error('Fetch courses failed:', e);
     return await db.courses.toArray();
   }
 };
 
-// Initialize app
-document.addEventListener('DOMContentLoaded', () => {
-  if (window.location.pathname === '/dashboard.html') {
-    fetchCourses().then(courses => {
-      // Render courses in dashboard
-      const courseList = document.getElementById('course-list');
-      if (courseList) {
-        courseList.innerHTML = courses.map(course => `<li>${course.name}</li>`).join('');
+function displayCourses(courses) {
+  const list = document.getElementById('course-list');
+  list.innerHTML = '';
+  courses.forEach(c => {
+    const li = document.createElement('li');
+    li.textContent = c.name;
+    li.onclick = () => {
+      window.currentCourseId = c.id;
+      console.log('Selected Course ID:', window.currentCourseId);
+      alert(`Course selected: ${c.name}`);
+      if (window.renderTaskButtons) {
+        window.renderTaskButtons();
       }
-    });
+    };
+    list.appendChild(li);
+  });
+}
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    window.currentUser = user;
+    console.log('Current User:', window.currentUser.uid);
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    fetchCourses().then(displayCourses);
   }
 });
+```
