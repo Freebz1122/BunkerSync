@@ -1,0 +1,10 @@
+```toml
+[build]
+  publish = "bunkersync"
+  command = "echo 'No build command needed'"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
