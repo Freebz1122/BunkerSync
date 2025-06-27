@@ -1,0 +1,118 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BunkerSync</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <script type="module" src="/app.js"></script>
+  <script type="module" src="/map.js"></script>
+  <script type="module" src="/task-panel.js"></script>
+  <script src="/env.js"></script>
+</head>
+<body>
+  <div id="login">
+    <div class="card">
+      <h2>Login</h2>
+      <input type="email" id="email" placeholder="Email">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+    </div>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <header>
+      <h1>BunkerSync Dashboard</h1>
+    </header>
+    <main>
+      <section id="add-course" class="card hidden">
+        <h2>Add Course</h2>
+        <input type="text" id="course-name" placeholder="Course Name">
+        <button onclick="addCourse(document.getElementById('course-name').value)">Save</button>
+      </section>
+
+      <section id="upload-map" class="card hidden">
+        <h2>Upload Map</h2>
+        <select id="hole-number">
+          <option value="">Select hole</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <input type="file" id="map-file" accept="image/*">
+        <button onclick="handleMapUpload()">Upload Map</button>
+      </section>
+
+      <section id="tasks" class="card hidden">
+        <h2>Tasks</h2>
+        <button id="add-task-btn" class="mb-3">Add Task</button>
+        <ul id="task-list"></ul>
+        <p class="status-legend">Status Legend: <span class="urgent">🔴 Urgent</span>  <span class="needs-attention">🟠 Needs Attention</span>  <span class="ok">🟢 OK</span></p>
+      </section>
+
+      <section id="map-section" class="card">
+        <h2>Map</h2>
+        <select id="hole-select" onchange="loadMap(this.value)">
+          <option value="">Select Hole</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <div id="map"></div>
+        <button onclick="toggleGrid()">Grid: Off</button>
+      </section>
+
+      <section id="settings" class="card">
+        <h2>Settings</h2>
+        <label>Course ID: <span id="course-id"></span></label>
+        <select id="settings-hole-select">
+          <option value="">Select hole</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <input type="file" id="settings-map-file" accept="image/*">
+        <button onclick="handleMapUpload()">Upload Map</button>
+        <label>Bunker Count: <input type="number" id="bunker-count"></label>
+        <button onclick="startPlacingBunkers()">Place Bunkers</button>
+        <button id="save-bunkers-btn" class="hidden">Save Bunkers</button>
+      </section>
+
+      <section id="courses" class="card">
+        <h2>Courses</h2>
+        <ul id="course-list"></ul>
+      </section>
+    </main>
+
+    <nav>
+      <div class="nav-item" onclick="document.getElementById('tasks').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#tasks)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#tasks-icon"></use></svg>
+        Tasks
+      </div>
+      <div class="nav-item" onclick="document.getElementById('map-section').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#map-section)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#map-icon"></use></svg>
+        Map
+      </div>
+      <div class="nav-item" onclick="document.getElementById('settings').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#settings)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#settings-icon"></use></svg>
+        Settings
+      </div>
+      <div class="nav-item" onclick="document.getElementById('courses').classList.remove('hidden'); document.querySelectorAll('#dashboard section:not(#courses)').forEach(s => s.classList.add('hidden'))">
+        <svg><use xlink:href="#courses-icon"></use></svg>
+        Courses
+      </div>
+    </nav>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker registered:', reg))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    }
+  </script>
+</body>
+</html>
+```
