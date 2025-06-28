@@ -1,14 +1,5 @@
-// ✅ Enhanced map.js: draggable bunker placement and saving
 import { db } from './db.js';
-import {
-  getDoc,
-  doc,
-  collection,
-  getDocs,
-  query,
-  where,
-  addDoc
-} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { collection, addDoc, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 let map = null;
 let markers = [];
@@ -16,98 +7,164 @@ let gridOverlay = null;
 let gridEnabled = false;
 let placingMode = false;
 let placingCount = 0;
-let placedBunkers = [];
 
-// Load map image for selected hole
-window.loadMap = async function (hole) {
-  if (!window.currentCourseId || !hole) {
-    document.getElementById('map').innerHTML = '<p>No course or hole selected.</p>';
+window.renderMap = async () => {
+  const canvas = document.getElementById('map-canvas');
+  if (!canvas) {
+    console.error('Map canvas not found');
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    console.error('Canvas context not available');
+    return;
+  }
+
+  // Set canvas size
+  canvas.width = 800;
+  canvas.height = 600;
+
+  // Load map image from Firestore/Supabase
+  if (!window.currentCourseId) {
+    console.warn('No course selected');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000';
+    ctx.fillText('Select a course to view the map.', 50, 50);
     return;
   }
 
   try {
-    const mapEntry = await db.maps.where({ courseId: window.currentCourseId, holeNumber: hole }).first();
-    if (!mapEntry || !mapEntry.url) {
-      document.getElementById('map').innerHTML = '<p>No map available for this hole.</p>';
-      return;
+    // Fetch map image URL
+    const mapQuery = await getDocs(collection(window.firestore, 'courses', window.currentCourseId, 'maps'));
+    const mapUrl = mapQuery.docs[0]?.data()?.url || '/images/placeholder-map.png';
+    
+    const img = new Image();
+    img.src = mapUrl;
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      loadBunkers();
+    };
+    img.onerror = () => {
+      console.error('Failed to load map image');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#000';
+      ctx.fillText('Failed to load map image.', 50, 50);
+    };
+  } catch (err) {
+    console.error('Error loading map:', err);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000';
+    ctx.fillText('Error loading map: ' + err.message, 50, 50);
+  }
+};
+
+async function loadBunkers() {
+  const canvas = document.getElementById('map-canvas');
+  const ctx = canvas.getContext('2d');
+  markers = [];
+
+  try {
+    // Fetch bunkers from Dexie
+    let bunkers = await db.bunkers.where({ courseId: window.currentCourseId }).toArray();
+    
+    // Sync with Firestore
+    if (window.currentUser && window.firestore) {
+      const bunkersQuery = query(collection(window.firestore, 'courses', window.currentCourseId, 'bunkers'));
+      const bunkersSnapshot = await getDocs(bunkersQuery);
+      bunkers = bunkersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        courseId: window.currentCourseId,
+        ...doc.data()
+      }));
+      if (bunkers.length) {
+        await db.bunkers.bulkPut(bunkers);
+      }
     }
 
-    if (map) map.remove();
-    map = L.map('map').setView([0, 0], 1);
-    L.imageOverlay(mapEntry.url, [[-100, -100], [100, 100]]).addTo(map);
-    map.fitBounds([[-100, -100], [100, 100]]);
-
-    markers.forEach(m => m.remove());
-    markers = [];
-
-    const bunkersSnapshot = await getDocs(
-      query(collection(firestore, 'courses', window.currentCourseId, 'bunkers'), where('holeNumber', '==', hole))
-    );
-    bunkersSnapshot.forEach(doc => {
-      const { lat, lng } = doc.data();
-      const marker = L.marker([lat, lng]).addTo(map);
-      markers.push(marker);
-    });
-
-    map.on('click', e => {
-      if (!placingMode) return;
-      const marker = L.marker(e.latlng, { draggable: true }).addTo(map);
-      markers.push(marker);
-      placedBunkers.push(marker);
-
-      if (placedBunkers.length === placingCount) {
-        placingMode = false;
-        alert('All bunkers placed. Drag into position, then click Save Bunkers.');
-      }
+    // Draw bunkers
+    bunkers.forEach(bunker => {
+      ctx.beginPath();
+      ctx.arc(bunker.x, bunker.y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = 'red';
+      ctx.fill();
+      markers.push({ id: bunker.id, x: bunker.x, y: bunker.y });
     });
   } catch (err) {
-    console.error('Map loading failed:', err);
-    document.getElementById('map').innerHTML = '<p>Error loading map.</p>';
+    console.error('Error loading bunkers:', err);
   }
+}
+
+canvas.addEventListener('click', async (e) => {
+  if (!placingMode || !window.currentCourseId) return;
+
+  const canvas = document.getElementById('map-canvas');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  try {
+    const bunker = {
+      courseId: window.currentCourseId,
+      x,
+      y,
+      timestamp: new Date().toISOString()
+    };
+    const docRef = await addDoc(collection(window.firestore, 'courses', window.currentCourseId, 'bunkers'), bunker);
+    await db.bunkers.put({ id: docRef.id, ...bunker });
+    
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    markers.push({ id: docRef.id, x, y });
+
+    placingCount--;
+    if (placingCount <= 0) {
+      placingMode = false;
+    }
+  } catch (err) {
+    console.error('Error adding bunker:', err);
+  }
+});
+
+window.togglePlacingMode = () => {
+  placingMode = !placingMode;
+  placingCount = placingMode ? 10 : 0; // Allow 10 bunkers per session
+  console.log('Placing mode:', placingMode);
 };
 
-window.startPlacingBunkers = () => {
-  const count = parseInt(document.getElementById('bunker-count').value);
-  if (!count || count < 1) {
-    alert('Enter a valid number of bunkers.');
-    return;
-  }
-  placingMode = true;
-  placingCount = count;
-  placedBunkers = [];
-  document.getElementById('save-bunkers-btn').classList.remove('hidden');
-  alert(`Click ${count} times on the map to place bunkers.`);
-};
-
-window.savePlacedBunkers = async () => {
-  if (!window.currentUser || !window.currentCourseId) return alert('Login and select a course first.');
-  const hole = document.getElementById('hole-select').value;
-  if (!hole) return alert('Select a hole.');
-
-  for (const m of placedBunkers) {
-    const { lat, lng } = m.getLatLng();
-    await addDoc(collection(firestore, 'courses', window.currentCourseId, 'bunkers'), {
-      holeNumber: hole,
-      lat,
-      lng,
-      createdAt: new Date()
-    });
-  }
-
-  alert(`${placedBunkers.length} bunkers saved.`);
-  document.getElementById('save-bunkers-btn').classList.add('hidden');
-  placingMode = false;
-  loadMap(hole);
-};
-
-window.toggleGrid = function () {
+window.toggleGrid = () => {
   gridEnabled = !gridEnabled;
-  const btn = document.querySelector('button[onclick="toggleGrid()"]');
-  btn.textContent = `Grid: ${gridEnabled ? 'On' : 'Off'}`;
+  const canvas = document.getElementById('map-canvas');
+  const ctx = canvas.getContext('2d');
+  
   if (gridEnabled) {
-    gridOverlay = L.grid().addTo(map);
+    gridOverlay = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const gridSize = 50;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+    for (let x = 0; x < canvas.width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
   } else if (gridOverlay) {
-    map.removeLayer(gridOverlay);
-    gridOverlay = null;
+    ctx.putImageData(gridOverlay, 0, 0);
+    loadBunkers();
   }
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+  window.renderMap();
+});
