@@ -1,9 +1,7 @@
-```javascript
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import { db } from './db.js';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const firebaseConfig = {
   apiKey: window.env.FIREBASE_API_KEY,
@@ -16,44 +14,37 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
-window.firestore = firestore;
+const supabase = createClient(window.env.NEXT_PUBLIC_SUPABASE_URL, window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-let supabase;
-try {
-  supabase = createClient(
-    window.env.NEXT_PUBLIC_SUPABASE_URL,
-    window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-  window.supabase = supabase;
-} catch (error) {
-  console.error('Supabase init failed:', error);
-}
+window.currentUser = null;
+window.currentCourseId = null;
 
-window.showAddCourse = () => {
-  document.getElementById('add-course').classList.toggle('hidden');
-};
-
-window.showUploadMap = () => {
-  document.getElementById('upload-map').classList.toggle('hidden');
-};
-
-window.login = async () => {
+window.signIn = async () => {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    window.currentUser = userCredential.user;
-    console.log('Logged in user:', window.currentUser.uid);
-    document.getElementById('login').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
-    fetchCourses().then(displayCourses);
-  } catch (e) {
-    alert('Login failed: ' + e.message);
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (error) {
+    console.error('Login failed:', error);
+    alert('Login failed: ' + error.message);
   }
 };
 
-window.addCourse = async (courseName) => {
-  if (!window.currentUser) return alert('Login first.');
+window.signOut = async () => {
+  await signOut(auth);
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('dashboard').classList.add('hidden');
+};
+
+window.showSection = (sectionId) => {
+  document.querySelectorAll('.section').forEach(section => section.classList.add('hidden'));
+  document.getElementById(sectionId).classList.remove('hidden');
+  if (sectionId === 'tasks') window.fetchTasks();
+};
+
+window.addCourse = async () => {
+  const courseName = document.getElementById('course-name').value;
+  if (!courseName || !window.currentUser) return alert('Enter a course name and sign in.');
   try {
     const docRef = await addDoc(collection(firestore, 'courses'), {
       name: courseName,
@@ -61,74 +52,105 @@ window.addCourse = async (courseName) => {
       createdAt: new Date()
     });
     window.currentCourseId = docRef.id;
-    await db.courses.put({ id: docRef.id, name: courseName });
-    alert('Course added');
-    fetchCourses().then(displayCourses);
-  } catch (e) {
-    console.error('Add course failed:', e);
-  }
-};
-
-window.handleMapUpload = async () => {
-  const file = document.getElementById('map-file').files[0];
-  const hole = document.getElementById('hole-number').value;
-  const courseId = window.currentCourseId;
-  if (!file || !hole || !courseId) return alert('Select file, hole, and course');
-  try {
-    const fileName = `${courseId}/hole-${hole}-${file.name}`;
-    const { error } = await supabase.storage.from('maps').upload(fileName, file);
-    if (error) {
-      console.error('Supabase upload failed:', error);
-      alert('Upload failed: ' + error.message);
-      throw error;
-    }
-    const { data } = supabase.storage.from('maps').getPublicUrl(fileName);
-    await db.maps.put({ id: fileName, courseId, url: data.publicUrl, holeNumber: hole });
-    alert('Map uploaded');
-  } catch (e) {
-    console.error('Error uploading map:', e);
-    alert('Upload failed');
+    document.getElementById('course-id').textContent = docRef.id;
+    await window.fetchCourses();
+  } catch (error) {
+    console.error('Add course failed:', error);
+    alert('Add course failed');
   }
 };
 
 window.fetchCourses = async () => {
   try {
-    const snapshot = await getDocs(collection(firestore, 'courses'));
+    const querySnapshot = await getDocs(collection(firestore, 'courses'));
+    const courseList = document.getElementById('course-list');
+    courseList.innerHTML = '';
     const courses = [];
-    snapshot.forEach(doc => courses.push({ id: doc.id, ...doc.data() }));
-    await db.courses.bulkPut(courses);
+    querySnapshot.forEach(doc => {
+      const course = { id: doc.id, ...doc.data() };
+      courses.push(course);
+      const li = document.createElement('li');
+      li.textContent = course.name;
+      li.className = 'p-2 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer';
+      li.onclick = () => {
+        window.currentCourseId = course.id;
+        document.getElementById('course-id').textContent = course.id;
+        window.fetchTasks();
+        window.fetchCourses(); // Refresh logo
+      };
+      courseList.appendChild(li);
+    });
+    if (window.currentCourseId) {
+      const logoQuery = await getDocs(collection(firestore, 'courses', window.currentCourseId, 'logos'));
+      const logo = logoQuery.docs[0]?.data()?.url || '/images/placeholder-logo.png';
+      document.getElementById('course-logo').src = logo;
+    }
     return courses;
-  } catch (e) {
-    console.error('Fetch courses failed:', e);
-    return await db.courses.toArray();
+  } catch (error) {
+    console.error('Fetch courses failed:', error);
+    alert('Fetch courses failed');
+    return [];
   }
 };
 
-function displayCourses(courses) {
-  const list = document.getElementById('course-list');
-  list.innerHTML = '';
-  courses.forEach(c => {
-    const li = document.createElement('li');
-    li.textContent = c.name;
-    li.onclick = () => {
-      window.currentCourseId = c.id;
-      console.log('Selected Course ID:', window.currentCourseId);
-      alert(`Course selected: ${c.name}`);
-      if (window.renderTaskButtons) {
-        window.renderTaskButtons();
-      }
-    };
-    list.appendChild(li);
-  });
-}
+window.uploadLogo = async () => {
+  const file = document.getElementById('logo-file').files[0];
+  if (!file || !window.currentCourseId) return alert('Select a file and course.');
+  try {
+    const fileName = `${window.currentCourseId}/logo-${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from('logos').upload(fileName, file);
+    if (error) throw new Error('Logo upload failed: ' + error.message);
+    const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+    await addDoc(collection(firestore, 'courses', window.currentCourseId, 'logos'), {
+      url: data.publicUrl,
+      uploadedAt: new Date()
+    });
+    document.getElementById('course-logo').src = data.publicUrl;
+    alert('Logo uploaded');
+  } catch (e) {
+    console.error(e);
+    alert('Logo upload failed');
+  }
+};
 
-onAuthStateChanged(auth, user => {
+window.uploadMap = async () => {
+  const file = document.getElementById('map-file').files[0];
+  if (!file || !window.currentCourseId) return alert('Select a file and course.');
+  try {
+    const fileName = `${window.currentCourseId}/map-${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from('maps').upload(fileName, file);
+    if (error) throw new Error('Map upload failed: ' + error.message);
+    const { data } = supabase.storage.from('maps').getPublicUrl(fileName);
+    await addDoc(collection(firestore, 'courses', window.currentCourseId, 'maps'), {
+      url: data.publicUrl,
+      uploadedAt: new Date()
+    });
+    alert('Map uploaded');
+  } catch (e) {
+    console.error(e);
+    alert('Map upload failed');
+  }
+};
+
+window.toggleTheme = () => {
+  document.documentElement.classList.toggle('dark');
+  localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+};
+
+onAuthStateChanged(auth, async user => {
   if (user) {
     window.currentUser = user;
-    console.log('Current User:', window.currentUser.uid);
     document.getElementById('login').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
-    fetchCourses().then(displayCourses);
+    await window.fetchCourses();
+    window.fetchTasks();
+    if (localStorage.getItem('theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  } else {
+    window.currentUser = null;
+    window.currentCourseId = null;
+    document.getElementById('login').classList.remove('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
   }
 });
-```

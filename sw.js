@@ -11,7 +11,9 @@ const urlsToCache = [
   '/styles.css',
   '/manifest.json',
   '/favicon.ico',
-  '/images/ganton-logo-v3.jpg'
+  '/images/placeholder-logo.png',
+  '/images/home-icon.png',
+  '/images/back-icon.png'
 ];
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
