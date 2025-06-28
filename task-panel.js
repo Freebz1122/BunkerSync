@@ -1,8 +1,6 @@
-```javascript
 import { db } from './db.js';
-import { collection, addDoc, getDocs, query, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { collection, addDoc, getDocs, query, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js';
 
-// Render tasks for the selected course
 export async function renderTaskButtons() {
   console.log('Rendering tasks, courseId:', window.currentCourseId, 'user:', window.currentUser?.uid);
   const taskList = document.getElementById('task-list');
@@ -19,12 +17,10 @@ export async function renderTaskButtons() {
   }
 
   try {
-    // Fetch tasks from Dexie
     console.log('Fetching tasks from Dexie for courseId:', window.currentCourseId);
     let tasks = await db.tasks.where({ courseId: window.currentCourseId }).toArray();
     console.log('Dexie tasks:', tasks);
 
-    // Sync with Firestore if user is logged in
     if (window.currentUser && window.firestore) {
       console.log('Fetching tasks from Firestore');
       const tasksQuery = query(collection(window.firestore, 'courses', window.currentCourseId, 'tasks'));
@@ -35,14 +31,13 @@ export async function renderTaskButtons() {
         ...doc.data()
       }));
       console.log('Firestore tasks:', tasks);
-      // Cache tasks in Dexie
       if (tasks.length) {
         await db.tasks.bulkPut(tasks);
         console.log('Tasks cached in Dexie');
       }
     }
 
-    taskList.innerHTML = ''; // Clear loading message
+    taskList.innerHTML = '';
     if (!tasks.length) {
       console.log('No tasks found for courseId:', window.currentCourseId);
       taskList.innerHTML = '<li class="p-3 text-gray-500">No tasks for this course.</li>';
@@ -74,7 +69,6 @@ export async function renderTaskButtons() {
   }
 }
 
-// Add a new task
 window.addTask = async () => {
   if (!window.currentUser || !window.currentCourseId) {
     console.warn('Cannot add task, missing user or courseId:', window.currentUser, window.currentCourseId);
@@ -100,14 +94,12 @@ window.addTask = async () => {
     };
     console.log('Adding task:', task);
 
-    // Save to Firestore
     const docRef = await addDoc(
       collection(window.firestore, 'courses', window.currentCourseId, 'tasks'),
       task
     );
     console.log('Task added to Firestore, ID:', docRef.id);
 
-    // Save to Dexie
     await db.tasks.put({ id: docRef.id, ...task });
     console.log('Task cached in Dexie');
     alert('Task added successfully.');
@@ -118,7 +110,6 @@ window.addTask = async () => {
   }
 };
 
-// Update task status
 window.updateTaskStatus = async (taskId, status) => {
   if (!window.currentUser || !window.currentCourseId) {
     console.warn('Cannot update task, missing user or courseId:', window.currentUser, window.currentCourseId);
@@ -128,11 +119,9 @@ window.updateTaskStatus = async (taskId, status) => {
 
   try {
     console.log('Updating task status, ID:', taskId, 'Status:', status);
-    // Update in Dexie
     await db.tasks.update(taskId, { status });
     console.log('Task updated in Dexie');
 
-    // Update in Firestore
     if (window.firestore) {
       const taskRef = doc(window.firestore, 'courses', window.currentCourseId, 'tasks', taskId);
       await updateDoc(taskRef, { status });
@@ -146,7 +135,6 @@ window.updateTaskStatus = async (taskId, status) => {
   }
 };
 
-// Initialize tasks when section is shown or course changes
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Task panel initialized');
   const tasksSection = document.getElementById('tasks');
@@ -155,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Render tasks when tasks section becomes visible
   const observer = new MutationObserver(() => {
     console.log('Tasks section visibility changed, hidden:', tasksSection.classList.contains('hidden'));
     if (!tasksSection.classList.contains('hidden')) {
@@ -164,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   observer.observe(tasksSection, { attributes: true, attributeFilter: ['class'] });
 
-  // Re-render tasks when course changes
   let lastCourseId = window.currentCourseId;
   const courseChangeInterval = setInterval(() => {
     if (window.currentCourseId !== lastCourseId) {
@@ -177,11 +163,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 1000);
 });
 
-// Handle add task button
 document.addEventListener('click', (e) => {
   if (e.target.id === 'add-task-btn') {
     console.log('Add task button clicked');
     window.addTask();
   }
 });
-```

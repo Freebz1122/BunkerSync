@@ -1,11 +1,8 @@
-```javascript
-import Dexie from 'https://unpkg.com/dexie@3.2.2/dist/dexie.min.js';
+import Dexie from 'https://cdn.jsdelivr.net/npm/dexie@3/dist/dexie.min.js';
+
 const db = new Dexie('BunkerSyncDB');
-db.version(2).stores({
-  courses: 'id, name, maps',
-  bunkers: 'id, courseId, holeNumber, lat, lng',
-  tasks: 'id, courseId, bunkerId, description, type, status, timestamp',
-  maps: 'id, courseId, url'
+db.version(1).stores({
+  tasks: 'id,courseId,description,type,status,timestamp,bunkerId',
+  bunkers: 'id,courseId,x,y'
 });
 export { db };
-```

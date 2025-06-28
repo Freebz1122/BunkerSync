@@ -1,6 +1,6 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js';
+import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const firebaseConfig = {
@@ -14,6 +14,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
+window.firestore = firestore; // Expose for task-panel.js
 const supabase = createClient(window.env.NEXT_PUBLIC_SUPABASE_URL, window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 window.currentUser = null;
@@ -39,7 +40,7 @@ window.signOut = async () => {
 window.showSection = (sectionId) => {
   document.querySelectorAll('.section').forEach(section => section.classList.add('hidden'));
   document.getElementById(sectionId).classList.remove('hidden');
-  if (sectionId === 'tasks') window.fetchTasks();
+  if (sectionId === 'tasks') window.renderTaskButtons();
 };
 
 window.addCourse = async () => {
@@ -75,8 +76,8 @@ window.fetchCourses = async () => {
       li.onclick = () => {
         window.currentCourseId = course.id;
         document.getElementById('course-id').textContent = course.id;
-        window.fetchTasks();
-        window.fetchCourses(); // Refresh logo
+        window.renderTaskButtons();
+        window.fetchCourses();
       };
       courseList.appendChild(li);
     });
@@ -143,7 +144,7 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('login').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     await window.fetchCourses();
-    window.fetchTasks();
+    window.renderTaskButtons();
     if (localStorage.getItem('theme') === 'dark') {
       document.documentElement.classList.add('dark');
     }
@@ -154,3 +155,9 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('dashboard').classList.add('hidden');
   }
 });
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => console.log('Service Worker registered:', reg))
+    .catch(err => console.error('Service Worker registration failed:', err));
+}
