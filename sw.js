@@ -5,12 +5,14 @@ const urlsToCache = [
   '/index.html',
   '/app.js',
   '/map.js',
-  '/db.js',
   '/task-panel.js',
+  '/db.js',
+  '/env-config.js',
   '/styles.css',
   '/manifest.json',
   '/favicon.ico',
-  '/images/home-icon.png',
+  '/images/ganton-logo-v3.jpg'
+];
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/dexie@3.2.2/dist/dexie.min.js',
