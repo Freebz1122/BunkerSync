@@ -1,6 +1,6 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js';
-import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const firebaseConfig = {
@@ -14,7 +14,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
-window.firestore = firestore; // Expose for task-panel.js
+window.firestore = firestore;
 const supabase = createClient(window.env.NEXT_PUBLIC_SUPABASE_URL, window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 window.currentUser = null;
@@ -41,6 +41,7 @@ window.showSection = (sectionId) => {
   document.querySelectorAll('.section').forEach(section => section.classList.add('hidden'));
   document.getElementById(sectionId).classList.remove('hidden');
   if (sectionId === 'tasks') window.renderTaskButtons();
+  if (sectionId === 'map') window.renderMap();
 };
 
 window.addCourse = async () => {
@@ -77,6 +78,7 @@ window.fetchCourses = async () => {
         window.currentCourseId = course.id;
         document.getElementById('course-id').textContent = course.id;
         window.renderTaskButtons();
+        window.renderMap();
         window.fetchCourses();
       };
       courseList.appendChild(li);
@@ -127,6 +129,7 @@ window.uploadMap = async () => {
       uploadedAt: new Date()
     });
     alert('Map uploaded');
+    window.renderMap();
   } catch (e) {
     console.error(e);
     alert('Map upload failed');
@@ -145,6 +148,7 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('dashboard').classList.remove('hidden');
     await window.fetchCourses();
     window.renderTaskButtons();
+    window.renderMap();
     if (localStorage.getItem('theme') === 'dark') {
       document.documentElement.classList.add('dark');
     }
