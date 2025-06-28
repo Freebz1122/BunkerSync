@@ -1,5 +1,6 @@
 .hidden { display: none; }
 .flex { display: flex; }
+.flex-col { flex-direction: column; }
 .section { display: block; }
 .bg-gray-100 { background-color: #f7fafc; }
 .dark:bg-gray-900 { background-color: #1a202c; }
@@ -9,35 +10,19 @@
 .dark:bg-gray-800 { background-color: #2d3748; }
 .border { border: 1px solid #e2e8f0; }
 .dark:border-gray-600 { border-color: #4a5568; }
-.text-red-500 { color: #f56565; }
-.text-orange-500 { color: #ed8936; }
-.text-green-500 { color: #48bb78; }
 .p-2 { padding: 0.5rem; }
 .p-3 { padding: 0.75rem; }
 .p-6 { padding: 1.5rem; }
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-4 { margin-bottom: 1rem; }
-.mb-6 { margin-bottom: 1.5rem; }
 .w-full { width: 100%; }
 .max-w-md { max-width: 28rem; }
 .rounded { border-radius: 0.25rem; }
-.rounded-lg { border-radius: 0.5rem; }
 .hover:bg-gray-300:hover { background-color: #e2e8f0; }
 .dark:hover:bg-gray-700:hover { background-color: #4a5568; }
 .text-xl { font-size: 1.25rem; }
-.text-2xl { font-size: 1.5rem; }
 .font-bold { font-weight: 700; }
 .cursor-pointer { cursor: pointer; }
 .bg-blue-500 { background-color: #3b82f6; }
 .text-white { color: #fff; }
 .hover:bg-blue-600:hover { background-color: #2563eb; }
-.text-sm { font-size: 0.875rem; }
-.flex-1 { flex: 1 1 0%; }
-.space-x-2 > * + * { margin-left: 0.5rem; }
-.w-64 { width: 16rem; }
-.w-10 { width: 2.5rem; }
-.h-10 { height: 2.5rem; }
-.mr-2 { margin-right: 0.5rem; }
-.mt-4 { margin-top: 1rem; }
-.border-gray-200 { border-color: #e2e8f0; }
-.bg-gray-50 { background-color: #f9fafb; }
