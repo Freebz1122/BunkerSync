@@ -166,5 +166,18 @@ window.toggleGrid = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+window.renderMap = () => {
+  console.log('Rendering map');
+  const mapDiv = document.getElementById('map');
+  if (mapDiv) {
+    mapDiv.innerHTML = '<p>Map placeholder</p>';
+  } else {
+    console.error('Map div not found');
+  }
+};
+
+// Ensure it runs on DOM load
+document.addEventListener('DOMContentLoaded', () => {
   window.renderMap();
+});
 });
