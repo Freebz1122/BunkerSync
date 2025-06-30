@@ -4,18 +4,18 @@ import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.c
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const firebaseConfig = {
-  apiKey: window.env.FIREBASE_API_KEY,
-  authDomain: window.env.FIREBASE_AUTH_DOMAIN,
-  projectId: window.env.FIREBASE_PROJECT_ID,
-  messagingSenderId: window.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: window.env.FIREBASE_APP_ID
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 window.firestore = firestore;
-const supabase = createClient(window.env.NEXT_PUBLIC_SUPABASE_URL, window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 window.currentUser = null;
 window.currentCourseId = null;
@@ -23,6 +23,10 @@ window.currentCourseId = null;
 window.signIn = async () => {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
+  if (!email || !password) {
+    alert('Please enter both email and password.');
+    return;
+  }
   try {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (error) {
@@ -134,6 +138,11 @@ window.uploadMap = async () => {
     console.error(e);
     alert('Map upload failed');
   }
+};
+
+window.addTask = () => {
+  console.log('Add task function placeholder');
+  // Implement task addition logic here (e.g., using Dexie or Firestore)
 };
 
 window.toggleTheme = () => {
