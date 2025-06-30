@@ -168,4 +168,18 @@ document.addEventListener('click', (e) => {
     console.log('Add task button clicked');
     window.addTask();
   }
+  window.renderTaskButtons = () => {
+  console.log('Rendering task buttons');
+  const taskPanel = document.getElementById('tasks');
+  if (taskPanel) {
+    taskPanel.innerHTML = '<button class="p-2 bg-blue-500 text-white rounded">Add Task</button>';
+  } else {
+    console.error('Task panel element not found');
+  }
+};
+
+// Optional: Initial call if needed
+document.addEventListener('DOMContentLoaded', () => {
+  window.renderTaskButtons();
+});
 });
